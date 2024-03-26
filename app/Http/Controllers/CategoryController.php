@@ -14,6 +14,7 @@ class CategoryController extends Controller
             $this->validateCategory($request);
 
             $category = Category::create($request->all());
+            $this->updateParentCategory($category->parent_id);
 
             return response()->json($category, 201);
         } catch (ValidationException $e) {
@@ -30,6 +31,7 @@ class CategoryController extends Controller
 
             $category = Category::findOrFail($id);
             $category->update($request->all());
+            $this->updateParentCategory($category->parent_id);
 
             return response()->json($category, 200);
         } catch (ValidationException $e) {
@@ -42,6 +44,7 @@ class CategoryController extends Controller
     public function destroy($id)
     {
         $category = Category::findOrFail($id);
+        $this->updateParentCategory($category->parent_id);
         $category->delete();
 
         return response()->json(null, 204);
@@ -49,15 +52,13 @@ class CategoryController extends Controller
 
     public function show($id)
     {
-        $category = Category::with('children')->findOrFail($id);
+        $category = Category::findOrFail($id);
         return response()->json($category);
     }
 
     public function paginate()
     {
-        $categories = Category::with('children')->whereNull('parent_id')->get();
-//        $categories = Category::with('children')->whereNull('parent_id')->paginate(2);
-//        $categories = Category::paginate(10);
+        $categories = Category::paginate(7);
         return response()->json($categories);
     }
 
@@ -68,5 +69,16 @@ class CategoryController extends Controller
             'parent_id' => 'nullable|exists:categories,id',
         ]);
     }
+
+    private function updateParentCategory($parentId)
+    {
+        if ($parentId) {
+            $category = Category::find($parentId);
+            $childrenIds = $category->children()->pluck('id')->toArray();
+            $category->childrenArr = $childrenIds;
+            $category->save();
+        }
+    }
+
 
 }
